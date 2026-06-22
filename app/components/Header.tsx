@@ -7,6 +7,7 @@ const CART_ITEM_COUNT = 3; // placeholder until real cart state exists
 
 const navLinks = [
   { href: "/", label: "Home" },
+  { href: "/products", label: "Products" },
   { href: "/categories", label: "Categories" },
 ];
 
