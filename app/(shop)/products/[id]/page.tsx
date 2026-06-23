@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
 import type { Metadata } from "next";
+import { AddToCartButton } from "@/components/cart/AddToCartButton";
 
 interface PageProps {
   params: { id: string };
@@ -84,9 +85,16 @@ export default async function ProductDetailPage({ params }: PageProps) {
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row gap-3">
-            <button className="flex-1 px-6 py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition-colors">
-              Add to Cart
-            </button>
+            <AddToCartButton
+              product={{
+                id: product.id,
+                name: product.name,
+                price: Number(product.price),
+                imageUrl: product.imageUrl,
+                category: product.category.name,
+              }}
+              className="flex-1 px-6 py-3 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 active:scale-95 transition-all"
+            />
             <Link
               href="/products"
               className="flex-1 text-center px-6 py-3 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition-colors"

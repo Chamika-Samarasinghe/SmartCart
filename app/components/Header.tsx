@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-
-const CART_ITEM_COUNT = 3; // placeholder until real cart state exists
+import { useCart } from "@/context/CartContext";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -13,6 +12,7 @@ const navLinks = [
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { itemCount } = useCart();
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
@@ -42,13 +42,13 @@ export default function Header() {
           <div className="flex items-center gap-2">
             <Link
               href="/cart"
-              aria-label={`Cart, ${CART_ITEM_COUNT} items`}
+              aria-label={`Cart, ${itemCount} items`}
               className="relative p-2 rounded-md text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
             >
               <CartIcon />
-              {CART_ITEM_COUNT > 0 && (
+              {itemCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-indigo-600 text-white text-[10px] font-bold px-1">
-                  {CART_ITEM_COUNT > 99 ? "99+" : CART_ITEM_COUNT}
+                  {itemCount > 99 ? "99+" : itemCount}
                 </span>
               )}
             </Link>
@@ -84,7 +84,7 @@ export default function Header() {
             onClick={() => setMenuOpen(false)}
             className="block px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
           >
-            Cart{CART_ITEM_COUNT > 0 && ` (${CART_ITEM_COUNT})`}
+            Cart{itemCount > 0 && ` (${itemCount})`}
           </Link>
         </nav>
       )}
