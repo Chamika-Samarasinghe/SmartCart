@@ -29,19 +29,21 @@ model Product {
 }
 
 model User {
-  id        Int        @id @default(autoincrement())
-  email     String     @unique
-  name      String
-  cartItems CartItem[]
-  createdAt DateTime   @default(now())
+  id            String     @id @default(cuid())
+  email         String     @unique
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  cartItems     CartItem[]
+  createdAt     DateTime   @default(now())
 }
 
 model CartItem {
-  id        Int      @id @default(autoincrement())
+  id        String   @id @default(cuid())
   quantity  Int      @default(1)
-  userId    Int
+  userId    String
   productId Int
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   product   Product  @relation(fields: [productId], references: [id])
   createdAt DateTime @default(now())
 

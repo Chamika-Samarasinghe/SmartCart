@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { UserMenu } from "@/components/auth/UserMenu";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -38,8 +39,12 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* Right side: cart + mobile hamburger */}
+          {/* Right side: user menu + cart + mobile hamburger */}
           <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
+              <UserMenu />
+            </div>
+
             <Link
               href="/cart"
               aria-label={`Cart, ${itemCount} items`}
@@ -86,6 +91,9 @@ export default function Header() {
           >
             Cart{itemCount > 0 && ` (${itemCount})`}
           </Link>
+          <div className="pt-2 border-t border-gray-100 mt-1">
+            <UserMenu />
+          </div>
         </nav>
       )}
     </header>
