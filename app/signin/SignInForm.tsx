@@ -1,8 +1,36 @@
 "use client";
 
+import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { signIn as webAuthnSignIn } from "next-auth/webauthn";
 
 export default function SignInForm({ callbackUrl }: { callbackUrl: string }) {
+  const [email, setEmail] = useState("");
+  const [passkeyError, setPasskeyError] = useState<string | null>(null);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
+
+  async function handlePasskey() {
+    setPasskeyError(null);
+    setPasskeyLoading(true);
+    try {
+      // No explicit action — Auth.js infers:
+      //   email + user exists  → authenticate with their passkey
+      //   email + new user     → register a new passkey account
+      //   no email             → browser passkey discovery
+      await webAuthnSignIn("webauthn", {
+        email: email.trim() || undefined,
+        callbackUrl,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.toLowerCase().includes("cancel")) {
+        setPasskeyError("Passkey sign-in failed. Try again.");
+      }
+    } finally {
+      setPasskeyLoading(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4 w-full max-w-xs">
       <button
@@ -20,7 +48,50 @@ export default function SignInForm({ callbackUrl }: { callbackUrl: string }) {
         <FacebookIcon />
         Continue with Facebook
       </button>
+
+      <div className="flex items-center gap-2 my-1">
+        <div className="flex-1 h-px bg-gray-200" />
+        <span className="text-xs text-gray-400 font-medium">or</span>
+        <div className="flex-1 h-px bg-gray-200" />
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <input
+          type="email"
+          placeholder="Email — leave blank to use saved passkey"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="username webauthn"
+          className="w-full py-2.5 px-3 rounded-lg border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        />
+        <button
+          onClick={handlePasskey}
+          disabled={passkeyLoading}
+          className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium shadow-sm transition-colors disabled:opacity-60"
+        >
+          <PasskeyIcon />
+          {passkeyLoading ? "Waiting for passkey…" : "Continue with Passkey"}
+        </button>
+        <p className="text-xs text-gray-400 text-center">
+          New here? Enter your email and a passkey account will be created.
+        </p>
+        {passkeyError && (
+          <p className="text-xs text-red-600 text-center">{passkeyError}</p>
+        )}
+      </div>
     </div>
+  );
+}
+
+function PasskeyIcon() {
+  return (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="7" r="4" />
+      <path d="M6 21v-2a4 4 0 0 1 4-4h1" />
+      <path d="m19 11-5 5" />
+      <path d="M17 17h.01" />
+      <rect x="14" y="11" width="8" height="5" rx="1" />
+    </svg>
   );
 }
 
