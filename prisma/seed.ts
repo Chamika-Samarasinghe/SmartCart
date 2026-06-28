@@ -175,6 +175,7 @@ async function main() {
     create: {
       email: "demo@smartcart.com",
       name: "Demo User",
+      image: null,
     },
   });
 

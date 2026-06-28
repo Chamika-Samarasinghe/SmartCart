@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useReducer } from "react";
+import { useSession } from "next-auth/react";
 
 export interface CartProduct {
   id: number;
@@ -76,37 +77,85 @@ const STORAGE_KEY = "smartcart";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(cartReducer, { items: [] });
+  const { data: session, status } = useSession();
+  const userId = session?.user?.id;
 
+  // Load cart based on auth state
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        dispatch({ type: "LOAD_CART", items: JSON.parse(stored) as CartItem[] });
+    if (status === "loading") return;
+
+    if (userId) {
+      // Authenticated: load from DB and clear localStorage
+      localStorage.removeItem(STORAGE_KEY);
+      fetch("/api/cart")
+        .then((r) => r.json())
+        .then(({ items }: { items: CartItem[] }) =>
+          dispatch({ type: "LOAD_CART", items })
+        )
+        .catch(() => {});
+    } else {
+      // Unauthenticated: load from localStorage
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) dispatch({ type: "LOAD_CART", items: JSON.parse(stored) as CartItem[] });
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore parse errors
     }
-  }, []);
+  }, [userId, status]);
 
+  // Persist to localStorage when unauthenticated
   useEffect(() => {
+    if (userId) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
-  }, [state.items]);
+  }, [state.items, userId]);
 
   const itemCount = state.items.reduce((sum, i) => sum + i.quantity, 0);
   const total = state.items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
 
+  const addItem = (product: CartProduct) => {
+    dispatch({ type: "ADD_ITEM", product });
+    if (userId) {
+      fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id }),
+      }).catch(() => {});
+    }
+  };
+
+  const removeItem = (productId: number) => {
+    dispatch({ type: "REMOVE_ITEM", productId });
+    if (userId) {
+      fetch(`/api/cart/${productId}`, { method: "DELETE" }).catch(() => {});
+    }
+  };
+
+  const updateQuantity = (productId: number, quantity: number) => {
+    dispatch({ type: "UPDATE_QUANTITY", productId, quantity });
+    if (userId) {
+      if (quantity <= 0) {
+        fetch(`/api/cart/${productId}`, { method: "DELETE" }).catch(() => {});
+      } else {
+        fetch(`/api/cart/${productId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quantity }),
+        }).catch(() => {});
+      }
+    }
+  };
+
+  const clearCart = () => {
+    dispatch({ type: "CLEAR_CART" });
+    if (userId) {
+      fetch("/api/cart", { method: "DELETE" }).catch(() => {});
+    }
+  };
+
   return (
     <CartContext.Provider
-      value={{
-        items: state.items,
-        itemCount,
-        total,
-        addItem: (product) => dispatch({ type: "ADD_ITEM", product }),
-        removeItem: (productId) => dispatch({ type: "REMOVE_ITEM", productId }),
-        updateQuantity: (productId, quantity) =>
-          dispatch({ type: "UPDATE_QUANTITY", productId, quantity }),
-        clearCart: () => dispatch({ type: "CLEAR_CART" }),
-      }}
+      value={{ items: state.items, itemCount, total, addItem, removeItem, updateQuantity, clearCart }}
     >
       {children}
     </CartContext.Provider>
