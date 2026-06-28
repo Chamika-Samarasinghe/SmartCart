@@ -5,7 +5,10 @@ import Facebook from "next-auth/providers/facebook";
 // This config must stay free of Node.js-only imports (no Prisma) because
 // it is imported by middleware which runs in the Edge runtime.
 export const authConfig: NextAuthConfig = {
-  providers: [Google, Facebook],
+  providers: [
+    Google({ allowDangerousEmailAccountLinking: true }),
+    Facebook({ allowDangerousEmailAccountLinking: true }),
+  ],
   pages: {
     signIn: "/signin",
   },
