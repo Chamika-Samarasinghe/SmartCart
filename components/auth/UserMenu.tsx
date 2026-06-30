@@ -37,7 +37,7 @@ export function UserMenu() {
     );
   }
 
-  const { name, email, image } = session.user;
+  const { name, email, image, role } = session.user;
   const initials = (name ?? email ?? "?")
     .split(" ")
     .map((w) => w[0])
@@ -78,6 +78,16 @@ export function UserMenu() {
             )}
             <p className="text-xs text-gray-500 truncate">{email}</p>
           </div>
+
+          {role === "ADMIN" && (
+            <Link
+              href="/admin"
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 transition-colors"
+            >
+              Admin Dashboard
+            </Link>
+          )}
 
           <Link
             href="/cart"

@@ -15,8 +15,10 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     authorized({ auth, request: { nextUrl } }) {
       const isLoggedIn = !!auth?.user;
-      const isCartRoute = nextUrl.pathname.startsWith("/cart");
-      if (isCartRoute && !isLoggedIn) {
+      const isProtectedRoute =
+        nextUrl.pathname.startsWith("/cart") ||
+        nextUrl.pathname.startsWith("/admin");
+      if (isProtectedRoute && !isLoggedIn) {
         const signInUrl = new URL("/signin", nextUrl);
         signInUrl.searchParams.set("callbackUrl", nextUrl.pathname);
         return Response.redirect(signInUrl);
