@@ -10,6 +10,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 model Category {
   id       Int       @id @default(autoincrement())
   name     String    @unique
@@ -34,6 +39,7 @@ model User {
   name           String?
   image          String?
   emailVerified  DateTime?
+  role           Role            @default(USER)
   cartItems      CartItem[]
   accounts       Account[]
   sessions       Session[]
@@ -100,7 +106,7 @@ model CartItem {
   userId    String
   productId Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product   Product  @relation(fields: [productId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 
   @@unique([userId, productId])

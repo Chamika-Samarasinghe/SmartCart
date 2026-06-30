@@ -45,18 +45,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async jwt({ token, user, account }) {
-      // On first sign-in the adapter has already persisted the user; look up the DB id.
+      // On first sign-in the adapter has already persisted the user; look up the DB id + role.
       if (user?.email && account) {
         const dbUser = await prisma.user.findUnique({
           where: { email: user.email },
-          select: { id: true },
+          select: { id: true, role: true },
         });
-        if (dbUser) token.userId = dbUser.id;
+        if (dbUser) {
+          token.userId = dbUser.id;
+          token.role = dbUser.role as "USER" | "ADMIN";
+        }
       }
       return token;
     },
     session({ session, token }) {
       if (token.userId) session.user.id = token.userId as string;
+      if (token.role) session.user.role = token.role as "USER" | "ADMIN";
       return session;
     },
   },
