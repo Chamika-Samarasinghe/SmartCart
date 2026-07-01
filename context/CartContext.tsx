@@ -18,6 +18,8 @@ export interface CartItem {
 
 interface CartState {
   items: CartItem[];
+  isLoading: boolean;
+  cartError: string | null;
 }
 
 type CartAction =
@@ -25,7 +27,9 @@ type CartAction =
   | { type: "REMOVE_ITEM"; productId: number }
   | { type: "UPDATE_QUANTITY"; productId: number; quantity: number }
   | { type: "CLEAR_CART" }
-  | { type: "LOAD_CART"; items: CartItem[] };
+  | { type: "LOAD_CART"; items: CartItem[] }
+  | { type: "SET_LOADING"; isLoading: boolean }
+  | { type: "SET_ERROR"; error: string | null };
 
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
@@ -33,6 +37,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       const existing = state.items.find((i) => i.product.id === action.product.id);
       if (existing) {
         return {
+          ...state,
           items: state.items.map((i) =>
             i.product.id === action.product.id
               ? { ...i, quantity: i.quantity + 1 }
@@ -40,24 +45,29 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           ),
         };
       }
-      return { items: [...state.items, { product: action.product, quantity: 1 }] };
+      return { ...state, items: [...state.items, { product: action.product, quantity: 1 }] };
     }
     case "REMOVE_ITEM":
-      return { items: state.items.filter((i) => i.product.id !== action.productId) };
+      return { ...state, items: state.items.filter((i) => i.product.id !== action.productId) };
     case "UPDATE_QUANTITY": {
       if (action.quantity <= 0) {
-        return { items: state.items.filter((i) => i.product.id !== action.productId) };
+        return { ...state, items: state.items.filter((i) => i.product.id !== action.productId) };
       }
       return {
+        ...state,
         items: state.items.map((i) =>
           i.product.id === action.productId ? { ...i, quantity: action.quantity } : i
         ),
       };
     }
     case "CLEAR_CART":
-      return { items: [] };
+      return { ...state, items: [] };
     case "LOAD_CART":
-      return { items: action.items };
+      return { ...state, items: action.items };
+    case "SET_LOADING":
+      return { ...state, isLoading: action.isLoading };
+    case "SET_ERROR":
+      return { ...state, cartError: action.error };
   }
 }
 
@@ -65,6 +75,9 @@ interface CartContextValue {
   items: CartItem[];
   itemCount: number;
   total: number;
+  isLoading: boolean;
+  cartError: string | null;
+  clearError: () => void;
   addItem: (product: CartProduct) => void;
   removeItem: (productId: number) => void;
   updateQuantity: (productId: number, quantity: number) => void;
@@ -76,35 +89,42 @@ const CartContext = createContext<CartContextValue | null>(null);
 const STORAGE_KEY = "smartcart";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(cartReducer, { items: [] });
+  const [state, dispatch] = useReducer(cartReducer, {
+    items: [],
+    isLoading: false,
+    cartError: null,
+  });
   const { data: session, status } = useSession();
   const userId = session?.user?.id;
 
-  // Load cart based on auth state
   useEffect(() => {
     if (status === "loading") return;
 
     if (userId) {
-      // Authenticated: load from DB and clear localStorage
       localStorage.removeItem(STORAGE_KEY);
+      dispatch({ type: "SET_LOADING", isLoading: true });
       fetch("/api/cart")
-        .then((r) => r.json())
+        .then((r) => {
+          if (!r.ok) throw new Error("Failed to load cart");
+          return r.json();
+        })
         .then(({ items }: { items: CartItem[] }) =>
           dispatch({ type: "LOAD_CART", items })
         )
-        .catch(() => {});
+        .catch(() =>
+          dispatch({ type: "SET_ERROR", error: "Could not load your cart. Please refresh the page." })
+        )
+        .finally(() => dispatch({ type: "SET_LOADING", isLoading: false }));
     } else {
-      // Unauthenticated: load from localStorage
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) dispatch({ type: "LOAD_CART", items: JSON.parse(stored) as CartItem[] });
       } catch {
-        // ignore
+        // corrupted storage — ignore, start fresh
       }
     }
   }, [userId, status]);
 
-  // Persist to localStorage when unauthenticated
   useEffect(() => {
     if (userId) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
@@ -113,49 +133,82 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const itemCount = state.items.reduce((sum, i) => sum + i.quantity, 0);
   const total = state.items.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
 
+  const clearError = () => dispatch({ type: "SET_ERROR", error: null });
+
   const addItem = (product: CartProduct) => {
     dispatch({ type: "ADD_ITEM", product });
+    dispatch({ type: "SET_ERROR", error: null });
     if (userId) {
       fetch("/api/cart", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ productId: product.id }),
-      }).catch(() => {});
+      })
+        .then((r) => { if (!r.ok) throw new Error(); })
+        .catch(() =>
+          dispatch({ type: "SET_ERROR", error: "Failed to add item to cart. Your changes may not be saved." })
+        );
     }
   };
 
   const removeItem = (productId: number) => {
     dispatch({ type: "REMOVE_ITEM", productId });
+    dispatch({ type: "SET_ERROR", error: null });
     if (userId) {
-      fetch(`/api/cart/${productId}`, { method: "DELETE" }).catch(() => {});
+      fetch(`/api/cart/${productId}`, { method: "DELETE" })
+        .then((r) => { if (!r.ok) throw new Error(); })
+        .catch(() =>
+          dispatch({ type: "SET_ERROR", error: "Failed to remove item. Please try again." })
+        );
     }
   };
 
   const updateQuantity = (productId: number, quantity: number) => {
     dispatch({ type: "UPDATE_QUANTITY", productId, quantity });
+    dispatch({ type: "SET_ERROR", error: null });
     if (userId) {
-      if (quantity <= 0) {
-        fetch(`/api/cart/${productId}`, { method: "DELETE" }).catch(() => {});
-      } else {
-        fetch(`/api/cart/${productId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ quantity }),
-        }).catch(() => {});
-      }
+      const req =
+        quantity <= 0
+          ? fetch(`/api/cart/${productId}`, { method: "DELETE" })
+          : fetch(`/api/cart/${productId}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ quantity }),
+            });
+      req
+        .then((r) => { if (!r.ok) throw new Error(); })
+        .catch(() =>
+          dispatch({ type: "SET_ERROR", error: "Failed to update quantity. Please try again." })
+        );
     }
   };
 
   const clearCart = () => {
     dispatch({ type: "CLEAR_CART" });
+    dispatch({ type: "SET_ERROR", error: null });
     if (userId) {
-      fetch("/api/cart", { method: "DELETE" }).catch(() => {});
+      fetch("/api/cart", { method: "DELETE" })
+        .then((r) => { if (!r.ok) throw new Error(); })
+        .catch(() =>
+          dispatch({ type: "SET_ERROR", error: "Failed to clear cart. Please try again." })
+        );
     }
   };
 
   return (
     <CartContext.Provider
-      value={{ items: state.items, itemCount, total, addItem, removeItem, updateQuantity, clearCart }}
+      value={{
+        items: state.items,
+        itemCount,
+        total,
+        isLoading: state.isLoading,
+        cartError: state.cartError,
+        clearError,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+      }}
     >
       {children}
     </CartContext.Provider>

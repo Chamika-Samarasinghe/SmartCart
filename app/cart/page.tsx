@@ -5,8 +5,50 @@ import Link from "next/link";
 import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/lib/utils";
 
+function CartSkeleton() {
+  return (
+    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className="h-9 w-52 bg-gray-200 rounded animate-pulse mb-8" />
+      <div className="lg:grid lg:grid-cols-3 lg:gap-8 items-start">
+        <div className="lg:col-span-2 space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="bg-white rounded-xl border border-gray-100 p-4 flex gap-4 animate-pulse"
+            >
+              <div className="w-24 h-24 rounded-lg bg-gray-200 shrink-0" />
+              <div className="flex-1 space-y-2 pt-1">
+                <div className="h-3 w-16 bg-gray-200 rounded" />
+                <div className="h-4 w-3/4 bg-gray-200 rounded" />
+                <div className="h-3 w-24 bg-gray-200 rounded" />
+                <div className="mt-3 h-9 w-28 bg-gray-200 rounded-lg" />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="mt-8 lg:mt-0">
+          <div className="bg-white rounded-xl border border-gray-100 p-6 animate-pulse space-y-3">
+            <div className="h-5 w-32 bg-gray-200 rounded" />
+            <div className="space-y-2 pt-1">
+              {[1, 2].map((i) => (
+                <div key={i} className="h-4 bg-gray-200 rounded" />
+              ))}
+            </div>
+            <div className="border-t border-gray-100 pt-4">
+              <div className="h-6 bg-gray-200 rounded" />
+            </div>
+            <div className="h-12 bg-gray-200 rounded-lg" />
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
 export default function CartPage() {
-  const { items, itemCount, total, removeItem, updateQuantity, clearCart } = useCart();
+  const { items, itemCount, total, removeItem, updateQuantity, clearCart, isLoading, cartError, clearError } = useCart();
+
+  if (isLoading) return <CartSkeleton />;
 
   if (items.length === 0) {
     return (
@@ -50,15 +92,44 @@ export default function CartPage() {
         </span>
       </h1>
 
+      {cartError && (
+        <div className="mb-6 flex items-start gap-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="w-5 h-5 shrink-0 mt-0.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.8}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+            />
+          </svg>
+          <span className="flex-1">{cartError}</span>
+          <button
+            onClick={clearError}
+            aria-label="Dismiss error"
+            className="shrink-0 text-red-400 hover:text-red-600 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       <div className="lg:grid lg:grid-cols-3 lg:gap-8 items-start">
         {/* Item list */}
         <div className="lg:col-span-2 space-y-4">
           {items.map(({ product, quantity }) => (
             <div
               key={product.id}
-              className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex gap-4"
+              className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex gap-3 sm:gap-4"
             >
-              <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-50 shrink-0">
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-50 shrink-0">
                 <Image
                   src={product.imageUrl}
                   alt={product.name}
@@ -101,7 +172,7 @@ export default function CartPage() {
                   </button>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between">
+                <div className="mt-3 flex items-center justify-between gap-2">
                   <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden">
                     <button
                       onClick={() => updateQuantity(product.id, quantity - 1)}
@@ -121,7 +192,7 @@ export default function CartPage() {
                       +
                     </button>
                   </div>
-                  <p className="font-bold text-gray-900">
+                  <p className="font-bold text-gray-900 shrink-0">
                     {formatPrice(product.price * quantity)}
                   </p>
                 </div>
