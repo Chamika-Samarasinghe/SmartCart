@@ -4,21 +4,32 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { signIn as webAuthnSignIn } from "next-auth/webauthn";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function SignInForm({ callbackUrl }: { callbackUrl: string }) {
   const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [passkeyError, setPasskeyError] = useState<string | null>(null);
   const [passkeyLoading, setPasskeyLoading] = useState(false);
 
+  function handleEmailChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setEmail(e.target.value);
+    if (emailError) setEmailError(null);
+  }
+
   async function handlePasskey() {
+    const trimmed = email.trim();
+    if (trimmed && !EMAIL_RE.test(trimmed)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+
+    setEmailError(null);
     setPasskeyError(null);
     setPasskeyLoading(true);
     try {
-      // No explicit action — Auth.js infers:
-      //   email + user exists  → authenticate with their passkey
-      //   email + new user     → register a new passkey account
-      //   no email             → browser passkey discovery
       await webAuthnSignIn("webauthn", {
-        email: email.trim() || undefined,
+        email: trimmed || undefined,
         callbackUrl,
       });
     } catch (err: unknown) {
@@ -56,14 +67,26 @@ export default function SignInForm({ callbackUrl }: { callbackUrl: string }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <input
-          type="email"
-          placeholder="Email — leave blank to use saved passkey"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          autoComplete="username webauthn"
-          className="w-full py-2.5 px-3 rounded-lg border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        />
+        <div className="space-y-1">
+          <input
+            type="email"
+            placeholder="Email — leave blank to use saved passkey"
+            value={email}
+            onChange={handleEmailChange}
+            autoComplete="username webauthn"
+            aria-label="Email address"
+            aria-invalid={!!emailError}
+            aria-describedby={emailError ? "email-error" : undefined}
+            className={`w-full py-2.5 px-3 rounded-lg border text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 transition-colors ${
+              emailError
+                ? "border-red-400 focus:ring-red-400 bg-red-50"
+                : "border-gray-200 focus:ring-indigo-400"
+            }`}
+          />
+          {emailError && (
+            <p id="email-error" className="text-xs text-red-600">{emailError}</p>
+          )}
+        </div>
         <button
           onClick={handlePasskey}
           disabled={passkeyLoading}
