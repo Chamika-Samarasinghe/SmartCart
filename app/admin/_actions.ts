@@ -103,7 +103,7 @@ export async function createCategory(_prev: unknown, formData: FormData) {
 
   try {
     await prisma.category.create({ data: { name, icon } });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[Create Category Error]", err);
     return { error: "Failed to create category. Please try again." };
   }
@@ -137,7 +137,7 @@ export async function updateCategory(_prev: unknown, formData: FormData) {
 
   try {
     await prisma.category.update({ where: { id }, data: { name, icon } });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[Update Category Error]", err);
     return { error: "Failed to update category. Please try again." };
   }
