@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { createCategory, updateCategory } from "@/app/admin/_actions";
+import { CATEGORY_ICON_OPTIONS, getCategoryStyle } from "@/lib/categoryIcons";
 
-type CategoryData = { id: number; name: string };
+type CategoryData = { id: number; name: string; icon?: string | null };
 
 const inputBase =
   "block w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-1 transition-colors";
@@ -14,6 +15,9 @@ const inputError = "border-red-400 focus:border-red-500 focus:ring-red-500 bg-re
 export default function CategoryForm({ category }: { category?: CategoryData }) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [selectedIcon, setSelectedIcon] = useState<string>(
+    category?.icon || getCategoryStyle(category?.icon, category?.name).id
+  );
   const [isPending, startTransition] = useTransition();
 
   const action = category ? updateCategory : createCategory;
@@ -45,8 +49,9 @@ export default function CategoryForm({ category }: { category?: CategoryData }) 
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="max-w-sm space-y-5">
+    <form onSubmit={handleSubmit} noValidate className="max-w-md space-y-6">
       {category && <input type="hidden" name="id" value={category.id} />}
+      <input type="hidden" name="icon" value={selectedIcon} />
 
       {serverError && (
         <div className="rounded-md bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
@@ -66,10 +71,41 @@ export default function CategoryForm({ category }: { category?: CategoryData }) 
           aria-describedby={nameError ? "name-error" : undefined}
           aria-invalid={!!nameError}
           className={`${inputBase} ${nameError ? inputError : inputNormal}`}
+          placeholder="e.g. Beverages"
         />
         {nameError && (
           <p id="name-error" className="text-xs text-red-600 mt-1">{nameError}</p>
         )}
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">
+          Select Category Icon
+        </label>
+        <div className="grid grid-cols-5 gap-3 p-3.5 bg-gray-50 border border-gray-200 rounded-xl">
+          {CATEGORY_ICON_OPTIONS.map((opt) => {
+            const { Icon, color, bg } = opt;
+            const isSelected = selectedIcon === opt.id;
+
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSelectedIcon(opt.id)}
+                title={opt.name}
+                className={`flex items-center justify-center p-3 rounded-xl border transition-all ${
+                  isSelected
+                    ? "border-indigo-600 bg-white shadow-md ring-2 ring-indigo-500/20 scale-105"
+                    : "border-transparent hover:bg-white hover:border-gray-200 hover:shadow-sm"
+                }`}
+              >
+                <div className={`${bg} ${color} p-2.5 rounded-lg`}>
+                  <Icon size={24} />
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex items-center gap-3 pt-2">

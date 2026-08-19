@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import { deleteCategory } from "../_actions";
 import { DeleteButton } from "@/components/admin/DeleteButton";
+import { getCategoryStyle } from "@/lib/categoryIcons";
 
 export default async function AdminCategoriesPage() {
   const categories = await prisma.category.findMany({
@@ -39,9 +40,16 @@ export default async function AdminCategoriesPage() {
             <tbody className="divide-y divide-gray-100">
               {categories.map((cat) => {
                 const deleteAction = deleteCategory.bind(null, cat.id);
+                const { Icon, color, bg } = getCategoryStyle(cat.icon, cat.name);
+
                 return (
                   <tr key={cat.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-900">{cat.name}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 flex items-center gap-3">
+                      <div className={`${bg} ${color} p-1.5 rounded-lg`}>
+                        <Icon size={18} />
+                      </div>
+                      <span>{cat.name}</span>
+                    </td>
                     <td className="px-4 py-3 text-right text-gray-600">
                       {cat._count.products}
                     </td>
