@@ -7,12 +7,18 @@ import { prisma } from "@/lib/db";
 // Pin the RP origin explicitly so options generation and callback verification
 // always use the same value. In dev this must match the browser's page origin
 // (http://localhost:3000), NOT the https:// Next.js sees internally via x-forwarded-proto.
-const _authUrl = process.env.AUTH_URL ?? process.env.NEXTAUTH_URL;
-const rpOrigin = _authUrl
-  ? new URL(_authUrl).origin
-  : process.env.NODE_ENV === "production"
-    ? (() => { throw new Error("Set AUTH_URL in production") })()
-    : "http://localhost:3000";
+function getRpOrigin() {
+  if (process.env.NODE_ENV !== "production") {
+    return "http://localhost:3000";
+  }
+  const url =
+    process.env.AUTH_URL ??
+    process.env.NEXTAUTH_URL ??
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
+  return url ? new URL(url).origin : "http://localhost:3000";
+}
+
+const rpOrigin = getRpOrigin();
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,

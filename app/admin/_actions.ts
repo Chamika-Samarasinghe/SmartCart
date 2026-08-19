@@ -87,18 +87,29 @@ export async function createCategory(_prev: unknown, formData: FormData) {
   await requireAdmin();
 
   const name = (formData.get("name") as string)?.trim();
+  const icon = (formData.get("icon") as string)?.trim() || null;
 
   if (!name) {
     return { error: "Name is required." };
   }
 
+  const existing = await prisma.category.findFirst({
+    where: { name: { equals: name, mode: "insensitive" } },
+  });
+
+  if (existing) {
+    return { error: `A category named "${existing.name}" already exists.` };
+  }
+
   try {
-    await prisma.category.create({ data: { name } });
-  } catch {
-    return { error: "A category with that name already exists." };
+    await prisma.category.create({ data: { name, icon } });
+  } catch (err: any) {
+    console.error("[Create Category Error]", err);
+    return { error: "Failed to create category. Please try again." };
   }
 
   revalidatePath("/admin/categories");
+  revalidatePath("/categories");
   redirect("/admin/categories");
 }
 
@@ -107,18 +118,32 @@ export async function updateCategory(_prev: unknown, formData: FormData) {
 
   const id = parseInt(formData.get("id") as string);
   const name = (formData.get("name") as string)?.trim();
+  const icon = (formData.get("icon") as string)?.trim() || null;
 
   if (isNaN(id) || !name) {
     return { error: "All fields are required." };
   }
 
+  const existing = await prisma.category.findFirst({
+    where: {
+      name: { equals: name, mode: "insensitive" },
+      NOT: { id },
+    },
+  });
+
+  if (existing) {
+    return { error: `Another category named "${existing.name}" already exists.` };
+  }
+
   try {
-    await prisma.category.update({ where: { id }, data: { name } });
-  } catch {
-    return { error: "A category with that name already exists." };
+    await prisma.category.update({ where: { id }, data: { name, icon } });
+  } catch (err: any) {
+    console.error("[Update Category Error]", err);
+    return { error: "Failed to update category. Please try again." };
   }
 
   revalidatePath("/admin/categories");
+  revalidatePath("/categories");
   redirect("/admin/categories");
 }
 
